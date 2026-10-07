@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interactive demonstration of a SMART on FHIR PKCE authorization flow between a third-party app and a payer.">
+  <title>PKCE Payer Flow</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b3b36'/%3E%3Cpath d='M20 31h24v20H20z' fill='%23d8f36a'/%3E%3Cpath d='M25 31v-6a7 7 0 0 1 14 0v6' fill='none' stroke='%23d8f36a' stroke-width='5'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #10211f;
+      --muted: #566763;
+      --canvas: #f4f7f3;
+      --surface: #ffffff;
+      --line: #cad5d1;
+      --brand: #0b3b36;
+      --brand-soft: #dcebe6;
+      --accent: #d8f36a;
+      --danger: #b42318;
+      --danger-soft: #fee4e2;
+      --success: #16734a;
+      --radius: 14px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--canvas);
+      color: var(--ink);
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    button { font: inherit; }
+
+    button:focus-visible {
+      outline: 3px solid #1769aa;
+      outline-offset: 3px;
+    }
+
+    .shell {
+      width: min(960px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 32px 0 56px;
+    }
+
+    header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    .eyebrow {
+      margin: 0 0 6px;
+      color: var(--success);
+      font-size: .85rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 3rem); line-height: 1.08; letter-spacing: -.035em; }
+    .intro { max-width: 650px; margin: 12px 0 0; color: var(--muted); }
+
+    .reset {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--ink);
+      padding: 10px 16px;
+      font-weight: 650;
+    }
+
+    .workspace {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--surface);
+      box-shadow: 0 20px 55px rgba(16, 33, 31, .08);
+    }
+
+    .actors {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .actor {
+      min-height: 104px;
+      padding: 20px;
+      border-right: 1px solid var(--line);
+      background: #f9fbfa;
+      transition: background .2s ease, box-shadow .2s ease;
+    }
+
+    .actor:last-child { border-right: 0; }
+    .actor.active { background: var(--brand-soft); box-shadow: inset 0 -4px 0 var(--brand); }
+    .actor strong { display: block; margin-bottom: 4px; }
+    .actor span { color: var(--muted); font-size: .875rem; }
+
+    .stage { padding: clamp(20px, 5vw, 44px); }
+
+    .track {
+      position: relative;
+      height: 72px;
+      margin: 4px 0 24px;
+    }
+
+    .track::before {
+      content: "";
+      position: absolute;
+      top: 34px;
+      left: 8%;
+      right: 8%;
+      height: 2px;
+      background: var(--line);
+    }
+
+    .packet {
+      position: absolute;
+      top: 16px;
+      left: 12%;
+      z-index: 1;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      background: var(--brand);
+      color: white;
+      padding: 8px 12px;
+      font-size: .875rem;
+      font-weight: 700;
+      white-space: nowrap;
+      transition: left .45s cubic-bezier(.2,.8,.2,1), background .2s ease;
+    }
+
+    .packet.danger { background: var(--danger); }
+
+    .step-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .step-number {
+      border-radius: 999px;
+      background: var(--accent);
+      color: #203100;
+      padding: 4px 10px;
+      font-size: .8rem;
+      font-weight: 800;
+    }
+
+    h2 { margin: 0; font-size: clamp(1.35rem, 3vw, 2rem); letter-spacing: -.025em; }
+
+    pre {
+      min-height: 164px;
+      margin: 18px 0;
+      padding: 18px;
+      overflow: auto;
+      border-radius: var(--radius);
+      background: #10211f;
+      color: #effff9;
+      font: 500 .9rem/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .result {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      min-height: 48px;
+      color: var(--muted);
+    }
+
+    .result-mark {
+      flex: 0 0 auto;
+      width: 12px;
+      height: 12px;
+      margin-top: 6px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+
+    .result-mark.fail { background: var(--danger); }
+
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .button {
+      min-height: 46px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--ink);
+      padding: 10px 18px;
+      font-weight: 750;
+    }
+
+    .button.primary { border-color: var(--brand); background: var(--brand); color: white; }
+    .button:disabled { opacity: .45; }
+
+    .lesson {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .lesson article { padding: 16px 0; }
+    .lesson strong { display: block; margin-bottom: 4px; }
+    .lesson p { margin: 0; color: var(--muted); font-size: .9rem; }
+
+    @media (max-width: 680px) {
+      .shell { width: min(100% - 20px, 960px); padding-top: 20px; }
+      header { display: block; }
+      .reset { margin-top: 16px; }
+      .actor { min-height: 90px; padding: 14px 10px; }
+      .actor span { display: none; }
+      .lesson { grid-template-columns: 1fr; gap: 0; }
+      .lesson article { border-bottom: 1px solid var(--line); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .001ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <p class="eyebrow">SMART authorization lab</p>
+        <h1>Why a stolen code is not enough</h1>
+        <p class="intro">Walk through a third-party app connecting to a payer. The attacker can capture the authorization code, but PKCE prevents it from becoming an access token.</p>
+      </div>
+      <button class="reset" id="reset" type="button">Start over</button>
+    </header>
+
+    <section class="workspace" aria-labelledby="step-title">
+      <div class="actors" aria-label="Participants">
+        <div class="actor" data-actor="app"><strong>Third-party app</strong><span>Keeps the verifier</span></div>
+        <div class="actor" data-actor="attacker"><strong>Sketchy app</strong><span>May steal the code</span></div>
+        <div class="actor" data-actor="payer"><strong>Payer</strong><span>Authorizes and issues tokens</span></div>
+      </div>
+
+      <div class="stage">
+        <div class="track" aria-hidden="true"><div class="packet" id="packet">Generate</div></div>
+        <div class="step-meta"><span class="step-number" id="step-number">Step 1 of 7</span></div>
+        <h2 id="step-title">Create the PKCE pair</h2>
+        <pre aria-label="Example request or response"><code id="example"></code></pre>
+        <div class="result" role="status" aria-live="polite">
+          <span class="result-mark" id="result-mark" aria-hidden="true"></span>
+          <span id="result"></span>
+        </div>
+        <div class="controls">
+          <button class="button" id="back" type="button">Back</button>
+          <button class="button primary" id="next" type="button">Next step</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="lesson" aria-label="Key concepts">
+      <article><strong>Verifier</strong><p>A high-entropy secret created and retained by the legitimate app.</p></article>
+      <article><strong>Challenge</strong><p>A one-way S256 transformation sent in the authorization request.</p></article>
+      <article><strong>Protection</strong><p>The payer issues a token only when the verifier matches the stored challenge.</p></article>
+    </section>
+  </main>
+
+  <script>
+    const steps = [
+      {
+        title: "Create the PKCE pair", actor: "app", position: "12%", packet: "Generate",
+        example: 'code_verifier = "priya-random-secret-8Yx..."\ncode_challenge = BASE64URL(SHA256(code_verifier))',
+        result: "The original verifier stays with the third-party app."
+      },
+      {
+        title: "Discover payer capabilities", actor: "payer", position: "88%", packet: "Discover",
+        example: 'GET /fhir/r4/.well-known/smart-configuration\n\n{\n  "code_challenge_methods_supported": ["S256"]\n}',
+        result: "The payer advertises support for the secure S256 method."
+      },
+      {
+        title: "Start authorization", actor: "payer", position: "88%", packet: "Authorize",
+        example: 'GET /authorize?\n  client_id=third-party-app-789&\n  code_challenge=H7K...&\n  code_challenge_method=S256',
+        result: "Only the challenge travels through the browser—not the verifier."
+      },
+      {
+        title: "Return the one-time code", actor: "app", position: "12%", packet: "code=ABC123",
+        example: '302 Location: https://app.example/callback?\n  code=ABC123&state=session-456',
+        result: "The payer returns a short-lived authorization code."
+      },
+      {
+        title: "An attacker intercepts the code", actor: "attacker", position: "50%", packet: "Stolen code", danger: true,
+        example: 'Attacker captured: code=ABC123\nAttacker does not have: code_verifier',
+        result: "The authorization code alone is not enough to obtain a token."
+      },
+      {
+        title: "The attacker attempts an exchange", actor: "payer", position: "88%", packet: "Wrong verifier", danger: true, fail: true,
+        example: 'POST /token\ngrant_type=authorization_code\ncode=ABC123\ncode_verifier=attacker-guess\n\nHTTP 400\n{ "error": "invalid_grant" }',
+        result: "Rejected: the verifier does not reproduce the challenge stored by the payer."
+      },
+      {
+        title: "The legitimate app proves possession", actor: "payer", position: "88%", packet: "Correct verifier",
+        example: 'POST /token\ngrant_type=authorization_code\ncode=NEW456\ncode_verifier=priya-random-secret-8Yx...\n\nHTTP 200\n{ "access_token": "eyJ...", "token_type": "Bearer" }',
+        result: "Accepted: the payer verifies the match and issues an access token."
+      }
+    ];
+
+    let current = 0;
+    const actorNodes = [...document.querySelectorAll(".actor")];
+    const packet = document.querySelector("#packet");
+    const stepNumber = document.querySelector("#step-number");
+    const stepTitle = document.querySelector("#step-title");
+    const example = document.querySelector("#example");
+    const result = document.querySelector("#result");
+    const resultMark = document.querySelector("#result-mark");
+    const back = document.querySelector("#back");
+    const next = document.querySelector("#next");
+    const reset = document.querySelector("#reset");
+
+    function render() {
+      const step = steps[current];
+      actorNodes.forEach(node => node.classList.toggle("active", node.dataset.actor === step.actor));
+      packet.style.left = step.position;
+      packet.textContent = step.packet;
+      packet.classList.toggle("danger", Boolean(step.danger));
+      stepNumber.textContent = `Step ${current + 1} of ${steps.length}`;
+      stepTitle.textContent = step.title;
+      example.textContent = step.example;
+      result.textContent = step.result;
+      resultMark.classList.toggle("fail", Boolean(step.fail));
+      back.disabled = current === 0;
+      next.textContent = current === steps.length - 1 ? "Start again" : "Next step";
+    }
+
+    back.addEventListener("click", () => { current = Math.max(0, current - 1); render(); });
+    next.addEventListener("click", () => { current = current === steps.length - 1 ? 0 : current + 1; render(); });
+    reset.addEventListener("click", () => { current = 0; render(); });
+    render();
+  </script>
+</body>
+</html>
