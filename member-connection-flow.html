@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Member-to-Payer Connection Flow</title>
+
+  <style>
+    :root {
+      --background: #f3f6f4;
+      --surface: #ffffff;
+      --text: #10211f;
+      --muted: #586965;
+      --border: #ccd7d3;
+      --brand: #0c3b36;
+      --accent: #d9f267;
+      --technical: #e9f2ff;
+      --member: #fff5d6;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--text);
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.55;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    button:focus-visible {
+      outline: 3px solid #1769aa;
+      outline-offset: 3px;
+    }
+
+    main {
+      width: min(1100px, calc(100% - 32px));
+      margin: 32px auto 64px;
+    }
+
+    header {
+      margin-bottom: 28px;
+    }
+
+    .eyebrow {
+      margin: 0 0 6px;
+      color: #176b48;
+      font-size: 0.82rem;
+      font-weight: bold;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 3.4rem);
+      line-height: 1.1;
+    }
+
+    .introduction {
+      max-width: 720px;
+      color: var(--muted);
+    }
+
+    .step-navigation {
+      display: grid;
+      grid-template-columns: repeat(11, 1fr);
+      gap: 6px;
+      margin-bottom: 18px;
+    }
+
+    .step-button {
+      min-height: 46px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--surface);
+      color: var(--muted);
+      font-weight: bold;
+    }
+
+    .step-button[aria-current="step"] {
+      border-color: var(--brand);
+      background: var(--brand);
+      color: white;
+    }
+
+    .workspace {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--surface);
+      box-shadow: 0 18px 55px rgba(16, 33, 31, 0.08);
+    }
+
+    .step-heading {
+      padding: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .step-count {
+      margin: 0 0 6px;
+      color: #176b48;
+      font-size: 0.85rem;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(1.5rem, 4vw, 2.4rem);
+    }
+
+    .columns {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .panel {
+      min-height: 270px;
+      padding: 26px;
+      border-right: 1px solid var(--border);
+    }
+
+    .panel:last-child {
+      border-right: 0;
+    }
+
+    .panel.member {
+      background: var(--member);
+    }
+
+    .panel.technical {
+      background: var(--technical);
+    }
+
+    .panel-label {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: bold;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .panel h3 {
+      margin: 0 0 10px;
+      font-size: 1.1rem;
+    }
+
+    .panel p {
+      margin: 0;
+    }
+
+    code {
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: rgba(12, 59, 54, 0.1);
+      font-family: monospace;
+    }
+
+    .owner {
+      display: inline-block;
+      margin-top: 18px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #263500;
+      font-size: 0.8rem;
+      font-weight: bold;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 20px 28px;
+      border-top: 1px solid var(--border);
+    }
+
+    .button {
+      min-height: 46px;
+      padding: 10px 18px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--text);
+      font-weight: bold;
+    }
+
+    .button.primary {
+      border-color: var(--brand);
+      background: var(--brand);
+      color: white;
+    }
+
+    .button:disabled {
+      opacity: 0.45;
+    }
+
+    @media (max-width: 750px) {
+      .step-navigation {
+        grid-template-columns: repeat(6, 1fr);
+      }
+
+      .columns {
+        grid-template-columns: 1fr;
+      }
+
+      .panel {
+        min-height: 0;
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .panel:last-child {
+        border-bottom: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">Patient Access API</p>
+
+      <h1>Connect a member to their payer</h1>
+
+      <p class="introduction">
+        Follow Priya from account creation through payer selection,
+        authorization, data retrieval and disconnection.
+      </p>
+    </header>
+
+    <nav
+      class="step-navigation"
+      id="step-navigation"
+      aria-label="Connection steps">
+    </nav>
+
+    <section class="workspace" aria-live="polite">
+      <div class="step-heading">
+        <p class="step-count" id="step-count"></p>
+        <h2 id="step-title"></h2>
+      </div>
+
+      <div class="columns">
+        <article class="panel member">
+          <p class="panel-label">What Priya sees</p>
+          <h3 id="member-heading"></h3>
+          <p id="member-description"></p>
+        </article>
+
+        <article class="panel">
+          <p class="panel-label">What the app does</p>
+          <h3 id="app-heading"></h3>
+          <p id="app-description"></p>
+        </article>
+
+        <article class="panel technical">
+          <p class="panel-label">Technical detail</p>
+          <h3 id="technical-heading"></h3>
+          <p id="technical-description"></p>
+          <span class="owner" id="owner"></span>
+        </article>
+      </div>
+
+      <div class="controls">
+        <button class="button" id="previous" type="button">
+          Previous
+        </button>
+
+        <button class="button primary" id="next" type="button">
+          Next step
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    /*
+      This array contains the entire journey.
+
+      To change the wording or add a step, edit this data.
+      You do not need to change the HTML layout.
+    */
+    const steps = [
+      {
+        title: "Create an app account",
+
+        memberHeading: "Priya creates her account",
+
+        memberDescription:
+          "Priya downloads the app or opens the web app. " +
+          "She creates an account and reviews the privacy policy.",
+
+        appHeading: "Identify the member and record acknowledgment",
+
+        appDescription:
+          "The app creates Priya's account, protects the login and " +
+          "records that she affirmatively acknowledged the privacy policy.",
+
+        technicalHeading: "Privacy acknowledgment",
+
+        technicalDescription:
+          "Save the policy version, timestamp and affirmative action. " +
+          "Multifactor authentication may also be offered.",
+
+        owner: "App / payer expectations"
+      },
+
+      {
+        title: "Choose a payer",
+
+        memberHeading: "Priya selects Payer A",
+
+        memberDescription:
+          "The app displays a searchable list of health plans. " +
+          "Priya chooses the plan she wants to connect.",
+
+        appHeading: "Map the payer to its FHIR service",
+
+        appDescription:
+          "The app finds the payer's FHIR base URL and the client " +
+          "registration associated with that payer.",
+
+        technicalHeading: "Payer directory",
+
+        technicalDescription:
+          "Map the payer's brand identifier to its FHIR base URL. " +
+          "The payer must publish documentation for its API.",
+
+        owner: "App + payer"
+      },
+
+      {
+        title: "Discover SMART configuration",
+
+        memberHeading: "Nothing visible happens",
+
+        memberDescription:
+          "Priya may see a brief loading indicator while the app " +
+          "prepares a secure connection.",
+
+        appHeading: "Discover the payer's endpoints",
+
+        appDescription:
+          "The app requests the payer's SMART configuration instead " +
+          "of assuming where authorization services are located.",
+
+        technicalHeading: "SMART discovery",
+
+        technicalDescription:
+          "Request <code>/.well-known/smart-configuration</code>. " +
+          "Read the authorization endpoint, token endpoint, scopes " +
+          "and supported PKCE methods.",
+
+        owner: "SMART specification"
+      },
+
+      {
+        title: "Start authorization",
+
+        memberHeading: "Priya leaves the app",
+
+        memberDescription:
+          "The app tells Priya that she will be sent to Payer A " +
+          "to sign in and approve access.",
+
+        appHeading: "Build the authorization request",
+
+        appDescription:
+          "The app creates a state value and a PKCE verifier. It sends " +
+          "the challenge, requested scopes and callback address to the payer.",
+
+        technicalHeading: "Authorization request",
+
+        technicalDescription:
+          "Send <code>response_type=code</code>, <code>client_id</code>, " +
+          "<code>redirect_uri</code>, <code>scope</code>, " +
+          "<code>state</code>, <code>aud</code> and the PKCE challenge.",
+
+        owner: "SMART specification + payer"
+      },
+
+      {
+        title: "Sign in to the payer",
+
+        memberHeading: "Priya signs in at Payer A",
+
+        memberDescription:
+          "Priya enters her payer portal credentials. The payer may " +
+          "ask for multifactor authentication or identity verification.",
+
+        appHeading: "Wait safely for the payer",
+
+        appDescription:
+          "The third-party app does not collect Priya's payer password. " +
+          "It waits for the payer to return the browser.",
+
+        technicalHeading: "Payer authentication",
+
+        technicalDescription:
+          "Authentication occurs on the payer's domain. The app must " +
+          "handle cancellation, failure and abandoned login attempts.",
+
+        owner: "Payer"
+      },
+
+      {
+        title: "Review payer authorization",
+
+        memberHeading: "Priya reviews and approves access",
+
+        memberDescription:
+          "Payer A shows which app is requesting access and which " +
+          "information the app wants to retrieve.",
+
+        appHeading: "Display registered app information",
+
+        appDescription:
+          "The app's registered name, logo, privacy-policy address " +
+          "and requested scopes must be accurate and understandable.",
+
+        technicalHeading: "Consent and attestation",
+
+        technicalDescription:
+          "The payer may show a privacy warning if an app has not " +
+          "made the requested attestation. The payer controls this screen.",
+
+        owner: "Payer"
+      },
+
+      {
+        title: "Return to the app",
+
+        memberHeading: "Priya returns to the app",
+
+        memberDescription:
+          "After approval, the payer sends Priya back to the third-party app.",
+
+        appHeading: "Validate the callback",
+
+        appDescription:
+          "The app checks that the returned state matches the value " +
+          "created at the start of the connection.",
+
+        technicalHeading: "Authorization callback",
+
+        technicalDescription:
+          "Handle the returned <code>code</code>, validate " +
+          "<code>state</code>, and safely handle " +
+          "<code>error=access_denied</code> or payer-specific errors.",
+
+        owner: "SMART specification + app"
+      },
+
+      {
+        title: "Exchange the code",
+
+        memberHeading: "Priya sees “Connecting…”",
+
+        memberDescription:
+          "The app displays progress while it completes the secure connection.",
+
+        appHeading: "Request an access token",
+
+        appDescription:
+          "The app sends the authorization code and original PKCE " +
+          "verifier directly to the payer's token endpoint.",
+
+        technicalHeading: "Token request",
+
+        technicalDescription:
+          "Send the code, redirect URI and <code>code_verifier</code>. " +
+          "Store returned tokens in protected storage.",
+
+        owner: "SMART specification"
+      },
+
+      {
+        title: "Retrieve payer data",
+
+        memberHeading: "Priya's health-plan data appears",
+
+        memberDescription:
+          "Claims, coverage and other available information begin " +
+          "appearing in the app.",
+
+        appHeading: "Call the FHIR API",
+
+        appDescription:
+          "The app uses the access token to retrieve authorized " +
+          "FHIR resources and follows pagination links.",
+
+        technicalHeading: "FHIR requests",
+
+        technicalDescription:
+          "Send the token in the Authorization header. Handle paging, " +
+          "rate limits, validation errors and referenced resources.",
+
+        owner: "Payer data + CMS regulation"
+      },
+
+      {
+        title: "Keep the connection current",
+
+        memberHeading: "Updates arrive without another login",
+
+        memberDescription:
+          "When permitted, the app can periodically retrieve newer " +
+          "payer data without asking Priya to sign in every time.",
+
+        appHeading: "Refresh access securely",
+
+        appDescription:
+          "The app refreshes tokens only when allowed and asks Priya " +
+          "to reconnect when consent or credentials are no longer valid.",
+
+        technicalHeading: "Offline access",
+
+        technicalDescription:
+          "<code>offline_access</code> may provide a refresh token. " +
+          "Support varies by payer, so the app must handle its absence.",
+
+        owner: "Payer"
+      },
+
+      {
+        title: "Disconnect the payer",
+
+        memberHeading: "Priya disconnects Payer A",
+
+        memberDescription:
+          "Priya can stop future collection and understand what " +
+          "happens to previously imported information.",
+
+        appHeading: "Revoke access and follow the privacy policy",
+
+        appDescription:
+          "The app calls the revocation endpoint when available, stops " +
+          "future synchronization and applies its deletion commitments.",
+
+        technicalHeading: "Revocation and deletion",
+
+        technicalDescription:
+          "Use the discovered revocation endpoint if offered. Also " +
+          "handle revocation initiated from the payer's portal.",
+
+        owner: "App + payer"
+      }
+    ];
+
+    let currentStep = 0;
+
+    const navigation = document.querySelector("#step-navigation");
+    const stepCount = document.querySelector("#step-count");
+    const stepTitle = document.querySelector("#step-title");
+
+    const memberHeading =
+      document.querySelector("#member-heading");
+
+    const memberDescription =
+      document.querySelector("#member-description");
+
+    const appHeading =
+      document.querySelector("#app-heading");
+
+    const appDescription =
+      document.querySelector("#app-description");
+
+    const technicalHeading =
+      document.querySelector("#technical-heading");
+
+    const technicalDescription =
+      document.querySelector("#technical-description");
+
+    const owner = document.querySelector("#owner");
+    const previous = document.querySelector("#previous");
+    const next = document.querySelector("#next");
+
+    /*
+      Create one numbered button for every step.
+    */
+    steps.forEach((step, index) => {
+      const button = document.createElement("button");
+
+      button.type = "button";
+      button.className = "step-button";
+      button.textContent = index + 1;
+      button.setAttribute(
+        "aria-label",
+        `Step ${index + 1}: ${step.title}`
+      );
+
+      button.addEventListener("click", () => {
+        currentStep = index;
+        renderStep();
+      });
+
+      navigation.appendChild(button);
+    });
+
+    function renderStep() {
+      const step = steps[currentStep];
+      const buttons = navigation.querySelectorAll("button");
+
+      stepCount.textContent =
+        `Step ${currentStep + 1} of ${steps.length}`;
+
+      stepTitle.textContent = step.title;
+
+      memberHeading.textContent = step.memberHeading;
+      memberDescription.textContent = step.memberDescription;
+
+      appHeading.textContent = step.appHeading;
+      appDescription.textContent = step.appDescription;
+
+      technicalHeading.textContent = step.technicalHeading;
+
+      /*
+        innerHTML is used only because our own trusted step data
+        contains code tags. Do not use it with untrusted user content.
+      */
+      technicalDescription.innerHTML =
+        step.technicalDescription;
+
+      owner.textContent = `Who decides: ${step.owner}`;
+
+      buttons.forEach((button, index) => {
+        if (index === currentStep) {
+          button.setAttribute("aria-current", "step");
+        } else {
+          button.removeAttribute("aria-current");
+        }
+      });
+
+      previous.disabled = currentStep === 0;
+
+      next.textContent =
+        currentStep === steps.length - 1
+          ? "Start again"
+          : "Next step";
+    }
+
+    previous.addEventListener("click", () => {
+      if (currentStep > 0) {
+        currentStep -= 1;
+        renderStep();
+      }
+    });
+
+    next.addEventListener("click", () => {
+      if (currentStep === steps.length - 1) {
+        currentStep = 0;
+      } else {
+        currentStep += 1;
+      }
+
+      renderStep();
+    });
+
+    renderStep();
+  </script>
+</body>
+</html>
